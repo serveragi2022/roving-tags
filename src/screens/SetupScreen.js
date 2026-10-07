@@ -1,29 +1,35 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
 import { useApp } from '../utils/AppContext';
-import { loadJson } from '../utils/storage';
-import { formatDateLabel, getRouteKey, getWorkDate, goTo, shiftDate } from '../utils/helpers';
-import { describeLoginError } from '../utils/accounts';
+import { formatDateLabel, getWorkDate, goTo, shiftDate } from '../utils/helpers';
+import { canSetup } from '../utils/accounts';
 import { getMachinesOfMill, MILLS } from '../utils/machineList';
 import { SHIFTS } from '../utils/sampleData';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
 // First screen: choose the date, mill and shift, then assign the route.
 export default function SetupScreen({ navigation }) {
-  const { user, setup, applySetup, accountInfo, syncAccounts, logoutUser, isOnline } = useApp();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { user, setup, applySetup, loadRoute, pendingSetupCount, isOnline } = useApp();
   const [workDate, setWorkDate] = useState(setup.workDate);
   const [mill, setMill] = useState(setup.mill);
   const [shift, setShift] = useState(setup.shift);
   const [savedCount, setSavedCount] = useState(0); // machines already assigned for this choice
+  const canEditSetup = canSetup(user); // only people with the Routes/Checklist access can set the route and checklists
 
   // Check if a route was already assigned for this date + mill + shift
+  // (asks the server when online, so everyone sees what the route setter set)
   useEffect(() => {
-    loadJson(getRouteKey({ workDate, mill, shift }), []).then((codes) => setSavedCount(codes.length));
-  }, [workDate, mill, shift]);
+    let isCurrent = true;
+    loadRoute({ workDate, mill, shift }).then((codes) => {
+      if (isCurrent) setSavedCount(codes.length);
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [workDate, mill, shift, isOnline]);
 
   async function openRoute(goToAssign) {
     await applySetup({ workDate, mill, shift });
@@ -34,48 +40,30 @@ export default function SetupScreen({ navigation }) {
     }
   }
 
-  async function handleSync() {
-    if (!isOnline) {
-      Alert.alert('No internet', 'Connect to the internet to sync the accounts.');
-      return;
-    }
-    setIsSyncing(true);
-    try {
-      const count = await syncAccounts();
-      Alert.alert('Done', `${count} accounts saved on this phone.`);
-    } catch (error) {
-      Alert.alert('Sync failed', describeLoginError(error));
-    }
-    setIsSyncing(false);
-  }
-
-  function handleLogout() {
-    Alert.alert('Logout?', 'Records saved on this phone are kept.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        onPress: () => {
-          logoutUser();
-          goTo(navigation, 'Login');
-        },
-      },
-    ]);
-  }
-
   if (!user) return null; // right after logout, before the Login screen shows
 
   return (
     <Screen
       title="Roving Setup"
       hideNav
+      onBack={() => goTo(navigation, 'Home')}
       footer={
-        savedCount > 0 ? (
-          <View>
-            <BigButton title={`Use Saved Route (${savedCount} machines)`} icon="play-arrow" onPress={() => openRoute(false)} />
-            <BigButton title="Edit Route" icon="edit" variant="neutral" onPress={() => openRoute(true)} />
-          </View>
+        canEditSetup ? (
+          savedCount > 0 ? (
+            <View>
+              <BigButton title={`Use Saved Route (${savedCount} machines)`} icon="play-arrow" onPress={() => openRoute(false)} />
+              <BigButton title="Edit Route" icon="edit" variant="neutral" onPress={() => openRoute(true)} />
+            </View>
+          ) : (
+            <BigButton title="Next: Assign Route" icon="arrow-forward" onPress={() => openRoute(true)} />
+          )
         ) : (
-          <BigButton title="Next: Assign Route" icon="arrow-forward" onPress={() => openRoute(true)} />
+          <BigButton
+            title={savedCount > 0 ? `Start Roving (${savedCount} machines)` : 'No Route Set Yet'}
+            icon="play-arrow"
+            disabled={savedCount === 0}
+            onPress={() => openRoute(false)}
+          />
         )
       }
     >
@@ -139,26 +127,23 @@ export default function SetupScreen({ navigation }) {
             A route is already assigned for this date, mill and shift ({savedCount} machines).
           </Text>
         </View>
+      ) : !canEditSetup ? (
+        <View style={[cardStyle, { backgroundColor: colors.amberLight, borderColor: colors.amber }]}>
+          <Text style={[textStyles.body, { color: colors.amberDark }]}>
+            {isOnline
+              ? 'No route has been set for this date, mill and shift yet.'
+              : 'No route on this phone for this date, mill and shift. Connect to the internet to download the route.'}
+          </Text>
+        </View>
       ) : null}
 
-      {/* Account and settings */}
-      <View style={cardStyle}>
-        <Text style={textStyles.small}>LOGGED IN</Text>
-        <Text style={textStyles.heading}>{user.name}</Text>
-        <Text style={[textStyles.label, { marginBottom: 4 }]}>{user.role} • {user.employeeId}</Text>
-        <Text style={[textStyles.label, { marginBottom: 12 }]}>
-          {accountInfo.count} accounts saved for offline use
-          {accountInfo.syncedAt ? ` • last sync ${new Date(accountInfo.syncedAt).toLocaleString()}` : ''}
-        </Text>
-        <BigButton title="Sync Accounts" icon="sync" variant="neutral" onPress={handleSync} loading={isSyncing} />
-        <BigButton
-          title="Manage Checklists"
-          icon="fact-check"
-          variant="neutral"
-          onPress={() => navigation.navigate('Checklists')}
-        />
-        <BigButton title="Logout" icon="logout" variant="danger" onPress={handleLogout} />
-      </View>
+      {canEditSetup && pendingSetupCount > 0 ? (
+        <View style={[cardStyle, { backgroundColor: colors.amberLight, borderColor: colors.amber }]}>
+          <Text style={[textStyles.body, { color: colors.amberDark }]}>
+            {pendingSetupCount} route/checklist change(s) saved on this phone, waiting to upload. They upload automatically when online.
+          </Text>
+        </View>
+      ) : null}
     </Screen>
   );
 }

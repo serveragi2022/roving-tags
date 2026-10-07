@@ -3,14 +3,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
 import MachinePicker from '../components/MachinePicker';
+import RestrictedScreen from '../components/RestrictedScreen';
 import { useApp } from '../utils/AppContext';
+import { canSetup } from '../utils/accounts';
 import { getMachinesOfMill, MILLS } from '../utils/machineList';
 import { colors, textStyles } from '../utils/theme';
 
 // Choose which machines use this checklist. Tip: search a machine type (for example "rollermill")
 // and use "Select all shown" to pick all machines that share the same checklist.
 export default function AssignChecklistScreen({ navigation, route }) {
-  const { setup, checklists, checklistMap, assignChecklist } = useApp();
+  const { user, setup, checklists, checklistMap, assignChecklist } = useApp();
   const checklistId = route.params.checklistId;
   const checklist = checklists.find((item) => item.id === checklistId);
 
@@ -22,6 +24,8 @@ export default function AssignChecklistScreen({ navigation, route }) {
     });
     return result;
   });
+
+  if (!canSetup(user)) return <RestrictedScreen navigation={navigation} title="Assign Checklist" />;
 
   if (!checklist) {
     return (

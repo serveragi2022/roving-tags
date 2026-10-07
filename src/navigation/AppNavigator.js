@@ -19,8 +19,9 @@ import ReviewScreen from '../screens/ReviewScreen';
 const Stack = createNativeStackNavigator();
 
 // Flow:
-// Login -> Setup (date, mill, shift) -> Assign Route -> Home
-// Setup -> Checklists -> Edit Checklist / Assign Checklist to machines
+// Login -> Home (today, last used mill and shift)
+// Home -> Setup (change date, mill, shift) -> Home or Assign Route
+// Home -> Checklists -> Edit Checklist / Assign Checklist to machines
 // Home -> Scan -> Checklist -> Photo -> (next stop)       Path A: normal roving
 // Home or Checklist -> Urgent -> Approval                  Path B: urgent repair
 // Route and History are opened from the bottom bar.
@@ -29,7 +30,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName={user ? 'Setup' : 'Login'} screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName={user ? 'Home' : 'Login'} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Setup" component={SetupScreen} />
         <Stack.Screen name="Checklists" component={ChecklistsScreen} />

@@ -4,15 +4,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
 import { useApp } from '../utils/AppContext';
-import { APPROVER_POSITION, describeLoginError, findAccount, isShiftMiller } from '../utils/accounts';
+import { ACCESS_APPROVE, canApprove, describeLoginError, findAccount } from '../utils/accounts';
 import { formatDuration, formatTime, goTo, makeRecordBase } from '../utils/helpers';
 import { findMachine } from '../utils/machineList';
 import { COMPLETION_APPROVAL_CHECKS, WORK_APPROVAL_CHECKS } from '../utils/checklistItems';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
-// The Shift Miller approves right on this phone (no internet needed):
+// The approver signs off right on this phone (no internet needed):
 // username + password are checked against the accounts saved on the phone,
-// and the account position must be "Shift Miller".
+// and the account must have the "Approve" access (ACCESS_APPROVE).
 // "work" tab = before the repair starts, "completion" tab = after the repair.
 export default function ApprovalScreen({ navigation, route }) {
   const { user, setup, urgentDraft, setUrgentDraft, addRecord } = useApp();
@@ -49,16 +49,17 @@ export default function ApprovalScreen({ navigation, route }) {
     setChecked({ ...checked, [index]: !checked[index] });
   }
 
-  // Checks the username and password. Returns the account of a Shift Miller, or null.
+  // Checks the username and password. Returns the account of an approver, or null.
   async function verifyApprover() {
     if (username.trim() === '' || password === '') {
-      Alert.alert('Sign-off needed', 'Please enter the username and password of the Shift Miller.');
+      Alert.alert('Sign-off needed', 'Please enter the username and password of the approver.');
       return null;
     }
     try {
       const account = await findAccount(username, password);
-      if (!isShiftMiller(account)) {
-        Alert.alert('Not allowed', `Only a ${APPROVER_POSITION} can approve. This account is: ${account.position || 'no position'}.`);
+   
+      if (!canApprove(account)) {
+        Alert.alert('Not allowed', `This account has no "${ACCESS_APPROVE}" access.`);
         return null;
       }
       return account;
@@ -83,7 +84,7 @@ export default function ApprovalScreen({ navigation, route }) {
     if (isChecking) return;
     const allChecked = checks.every((text, index) => checked[index]);
     if (!allChecked) {
-      Alert.alert('Please check all items', 'The Shift Miller must confirm every item.');
+      Alert.alert('Please check all items', 'The approver must confirm every item.');
       return;
     }
 
@@ -167,7 +168,7 @@ export default function ApprovalScreen({ navigation, route }) {
       ) : (
         <View style={[styles.status, { backgroundColor: colors.amberLight, borderColor: colors.amber }]}>
           <Text style={[styles.statusTitle, { color: colors.amberDark }]}>Waiting for Approval</Text>
-          <Text style={textStyles.body}>A {APPROVER_POSITION} must sign off before the work continues.</Text>
+          <Text style={textStyles.body}>An approver must sign off before the work continues.</Text>
         </View>
       )}
 
@@ -200,7 +201,7 @@ export default function ApprovalScreen({ navigation, route }) {
       {!isApproved ? (
         <View>
           <View style={cardStyle}>
-            <Text style={textStyles.heading}>{APPROVER_POSITION} Verification</Text>
+            <Text style={textStyles.heading}>Approver Verification</Text>
             {checks.map((text, index) => (
               <Pressable key={text} style={styles.checkRow} onPress={() => toggleCheck(index)}>
                 <MaterialIcons
@@ -214,7 +215,7 @@ export default function ApprovalScreen({ navigation, route }) {
           </View>
 
           <View style={cardStyle}>
-            <Text style={textStyles.heading}>{APPROVER_POSITION} Sign-off</Text>
+            <Text style={textStyles.heading}>Approver Sign-off</Text>
             <Text style={[textStyles.label, { marginTop: 8 }]}>Username</Text>
             <TextInput
               value={username}

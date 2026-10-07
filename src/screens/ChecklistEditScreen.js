@@ -3,7 +3,9 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { MaterialIcons } from '@expo/vector-icons';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
+import RestrictedScreen from '../components/RestrictedScreen';
 import { useApp } from '../utils/AppContext';
+import { canSetup } from '../utils/accounts';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
 function makeId(prefix) {
@@ -12,7 +14,7 @@ function makeId(prefix) {
 
 // Create or edit a checklist: a name, the Operating Status checks and the 5S / Housekeeping checks.
 export default function ChecklistEditScreen({ navigation, route }) {
-  const { checklists, saveChecklist, deleteChecklist } = useApp();
+  const { user, checklists, saveChecklist, deleteChecklist } = useApp();
   const existing = checklists.find((item) => item.id === route.params?.checklistId);
 
   const [name, setName] = useState(existing ? existing.name : '');
@@ -20,6 +22,8 @@ export default function ChecklistEditScreen({ navigation, route }) {
   const [housekeeping, setHousekeeping] = useState(existing ? existing.housekeeping : []);
 
   const isDefault = existing && existing.id === 'default';
+
+  if (!canSetup(user)) return <RestrictedScreen navigation={navigation} title="Edit Checklist" />;
 
   // Small helpers so both sections work the same way
   const sections = [

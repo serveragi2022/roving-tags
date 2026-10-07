@@ -1,9 +1,20 @@
-// PLACEHOLDER. Copy the file "utils/encryption.js" from your MMS app over this file.
-// It must export: encryptPassword(password)
-// It must use the same key and IV as the server (Encryption_Descryption.Encrypt),
-// so the result matches the "pass" value returned by GET /api/user.
-// The key is not written here on purpose. Do not commit secrets to a shared repository.
-// If the MMS file imports a package (for example crypto-js), install the same package here.
-export function encryptPassword() {
-  throw new Error('src/utils/encryption.js is a placeholder. Copy encryptPassword() from the MMS app.');
+import CryptoJS from "crypto-js";
+
+// Mirrors C# GetHashKey: PBKDF2(password=hashKey, salt="JennelMarasigan", 16 bytes, default iterations=1000, SHA1)
+function getHashKey(hashKey) {
+  const salt = CryptoJS.enc.Utf8.parse("JennelMarasigan");
+  const key = CryptoJS.PBKDF2(hashKey, salt, {
+    keySize: 128 / 32, // 16 bytes
+    iterations: 1000,
+    hasher: CryptoJS.algo.SHA1,
+  });
+  return key; // WordArray, 16 bytes
+}
+
+// Mirrors C# Encrypt: AES, Key=IV=key, default mode CBC, default padding PKCS7
+export function encryptPassword(plainPassword) {
+  const key = getHashKey("@JennelMarasigan");
+  const iv = key; // same bytes used as IV
+  const encrypted = CryptoJS.AES.encrypt(plainPassword, key, { iv });
+  return encrypted.toString(); // Base64 string, matches C# output
 }

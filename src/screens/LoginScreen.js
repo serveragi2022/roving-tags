@@ -4,7 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Screen from "../components/Screen";
 import BigButton from "../components/BigButton";
 import { useApp } from "../utils/AppContext";
-import { describeLoginError, findAccount, makeUser } from "../utils/accounts";
+import { canUseApp, describeLoginError, findAccount, makeUser } from "../utils/accounts";
 import { loginOnline } from "../services/api";
 import { goTo } from "../utils/helpers";
 import { cardStyle, colors, textStyles } from "../utils/theme";
@@ -62,12 +62,14 @@ export default function LoginScreen({ navigation }) {
           const data = await loginOnline(username.trim(), pass);
 
           const newUser = makeUser(data, username.trim());
+          // access_module comes from the login answer
+          if (!canUseApp(newUser)) throw new Error("NO_ACCESS");
           loginUser(newUser);
           syncAccounts(newUser.branch).catch(() => {}); // refresh the offline accounts, ignore errors
-          goTo(navigation, "Setup");
+          goTo(navigation, "Home");
           return;
         } catch (error) {
-          if (error.message === "INVALID" || error.message === "NO_API_URL") {
+          if (["INVALID", "NO_API_URL", "NO_ACCESS"].includes(error.message)) {
             Alert.alert("Login Failed", describeLoginError(error));
             return;
           }
@@ -76,8 +78,10 @@ export default function LoginScreen({ navigation }) {
       }
 
       const account = await findAccount(username, password);
-      loginUser(makeUser(account, account.username));
-      goTo(navigation, "Setup");
+      const savedUser = makeUser(account, account.username);
+      if (!canUseApp(savedUser)) throw new Error("NO_ACCESS");
+      loginUser(savedUser);
+      goTo(navigation, "Home");
     } catch (error) {
       Alert.alert("Login Failed", describeLoginError(error));
     } finally {

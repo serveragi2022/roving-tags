@@ -1,13 +1,17 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
+import RestrictedScreen from '../components/RestrictedScreen';
 import { useApp } from '../utils/AppContext';
+import { canSetup } from '../utils/accounts';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
 // List of checklists. Each machine uses the checklist assigned to it,
 // or the Standard Checklist when none is assigned.
 export default function ChecklistsScreen({ navigation }) {
-  const { checklists, checklistMap } = useApp();
+  const { user, checklists, checklistMap } = useApp();
+
+  if (!canSetup(user)) return <RestrictedScreen navigation={navigation} title="Checklists" />;
 
   function countMachines(checklistId) {
     return Object.values(checklistMap).filter((id) => id === checklistId).length;

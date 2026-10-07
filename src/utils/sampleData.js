@@ -1,1 +1,1 @@
-export const SHIFTS = ['A', 'B', 'C'];
+export const SHIFTS = ['1', '2', '3'];

@@ -4,6 +4,7 @@ import Screen from '../components/Screen';
 import StatusPill from '../components/StatusPill';
 import BigButton from '../components/BigButton';
 import { useApp } from '../utils/AppContext';
+import { canSetup } from '../utils/accounts';
 import { countStops, formatDateLabel, formatTime, getStopStatus, goTo, groupByFloor } from '../utils/helpers';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
@@ -15,7 +16,8 @@ const STRIPE_COLORS = {
 };
 
 export default function RouteScreen({ navigation }) {
-  const { setup, stops, todayRecords } = useApp();
+  const { user, setup, stops, todayRecords } = useApp();
+  const isSetupAllowed = canSetup(user);
 
   const counts = countStops(stops, todayRecords);
   const completed = counts.done + counts.issue;
@@ -59,7 +61,9 @@ export default function RouteScreen({ navigation }) {
           </View>
         </View>
 
-        <BigButton title="Edit Route" icon="edit" variant="neutral" onPress={() => navigation.navigate('AssignRoute')} />
+        {isSetupAllowed ? (
+          <BigButton title="Edit Route" icon="edit" variant="neutral" onPress={() => navigation.navigate('AssignRoute')} />
+        ) : null}
       </View>
     );
   }
@@ -94,8 +98,12 @@ export default function RouteScreen({ navigation }) {
   function renderEmpty() {
     return (
       <View style={{ alignItems: 'center', marginTop: 24 }}>
-        <Text style={[textStyles.body, { marginBottom: 12 }]}>No route assigned yet.</Text>
-        <BigButton title="Assign Route" icon="add-task" onPress={() => navigation.navigate('AssignRoute')} />
+        <Text style={[textStyles.body, { marginBottom: 12, textAlign: 'center' }]}>
+          {isSetupAllowed ? 'No route assigned yet.' : 'No route set yet for this date, mill and shift. Please ask the person who sets the routes.'}
+        </Text>
+        {isSetupAllowed ? (
+          <BigButton title="Assign Route" icon="add-task" onPress={() => navigation.navigate('AssignRoute')} />
+        ) : null}
       </View>
     );
   }

@@ -1,13 +1,17 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
 import { useApp } from '../utils/AppContext';
+import { canSetup, describeLoginError } from '../utils/accounts';
 import { countStops, formatDateLabel, getGreeting, getStopStatus, goTo } from '../utils/helpers';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
 export default function HomeScreen({ navigation }) {
-  const { user, setup, stops, todayRecords } = useApp();
+  const { user, setup, stops, todayRecords, accountInfo, syncAccounts, logoutUser, isOnline } = useApp();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const isSetupAllowed = canSetup(user);
 
   const counts = countStops(stops, todayRecords);
   const completed = counts.done + counts.issue;
@@ -16,13 +20,44 @@ export default function HomeScreen({ navigation }) {
 
   function handleStart() {
     if (stops.length === 0) {
-      navigation.navigate('AssignRoute');
+      if (isSetupAllowed) navigation.navigate('AssignRoute');
+      else goTo(navigation, 'Setup'); // operator: pick another date / mill / shift
     } else if (nextStop) {
       navigation.navigate('Scan');
     } else {
       goTo(navigation, 'History'); // everything is done: go to review and upload
     }
   }
+
+  async function handleSync() {
+    if (!isOnline) {
+      Alert.alert('No internet', 'Connect to the internet to sync the accounts.');
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const count = await syncAccounts();
+      Alert.alert('Done', `${count} accounts saved on this phone.`);
+    } catch (error) {
+      Alert.alert('Sync failed', describeLoginError(error));
+    }
+    setIsSyncing(false);
+  }
+
+  function handleLogout() {
+    Alert.alert('Logout?', 'Records saved on this phone are kept.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        onPress: () => {
+          logoutUser();
+          goTo(navigation, 'Login');
+        },
+      },
+    ]);
+  }
+
+  if (!user) return null; // right after logout, before the Login screen shows
 
   return (
     <Screen title="Roving Tags" pillText={setup.mill} activeTab="Route">
@@ -54,7 +89,9 @@ export default function HomeScreen({ navigation }) {
           <Text style={[textStyles.small, { color: colors.amberDark }]}>TODAY'S ROUTE</Text>
           <Text style={[textStyles.heading, { marginTop: 4 }]}>No route assigned yet</Text>
           <Text style={[textStyles.label, { marginTop: 4 }]}>
-            Choose the machines to rove for {setup.mill}, Shift {setup.shift}.
+            {isSetupAllowed
+              ? `Choose the machines to rove for ${setup.mill}, Shift ${setup.shift}.`
+              : `No route has been set for ${setup.mill}, Shift ${setup.shift} yet.`}
           </Text>
         </View>
       ) : (
@@ -91,8 +128,12 @@ export default function HomeScreen({ navigation }) {
 
       {/* Main buttons */}
       <BigButton
-        title={stops.length === 0 ? 'ASSIGN ROUTE' : nextStop ? 'START ROVING' : 'REVIEW & UPLOAD'}
-        icon={stops.length === 0 ? 'add-task' : nextStop ? 'play-arrow' : 'cloud-upload'}
+        title={
+          stops.length === 0
+            ? isSetupAllowed ? 'ASSIGN ROUTE' : 'CHANGE DATE / MILL / SHIFT'
+            : nextStop ? 'START ROVING' : 'REVIEW & UPLOAD'
+        }
+        icon={stops.length === 0 ? (isSetupAllowed ? 'add-task' : 'edit-calendar') : nextStop ? 'play-arrow' : 'cloud-upload'}
         onPress={handleStart}
       />
       {nextStop ? (
@@ -115,6 +156,25 @@ export default function HomeScreen({ navigation }) {
 
         <Text style={[textStyles.small, { marginTop: 12 }]}>LOGGED IN</Text>
         <Text style={textStyles.body}>{user.name} • {user.employeeId}</Text>
+      </View>
+
+      {/* Account and settings */}
+      <View style={cardStyle}>
+        <Text style={textStyles.small}>ACCOUNT</Text>
+        <Text style={[textStyles.label, { marginTop: 4, marginBottom: 12 }]}>
+          {accountInfo.count} accounts saved for offline use
+          {accountInfo.syncedAt ? ` • last sync ${new Date(accountInfo.syncedAt).toLocaleString()}` : ''}
+        </Text>
+        <BigButton title="Sync Accounts" icon="sync" variant="neutral" onPress={handleSync} loading={isSyncing} />
+        {isSetupAllowed ? (
+          <BigButton
+            title="Manage Checklists"
+            icon="fact-check"
+            variant="neutral"
+            onPress={() => navigation.navigate('Checklists')}
+          />
+        ) : null}
+        <BigButton title="Logout" icon="logout" variant="danger" onPress={handleLogout} />
       </View>
     </Screen>
   );

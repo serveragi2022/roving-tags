@@ -94,6 +94,8 @@ export function makeRecordBase(user, setup, assetCode, stop) {
     assetCode,
     assetName: stop ? stop.name : '',
     location: stop ? `${stop.area} — ${stop.floor}` : '',
+    userId: user.userId, // the server uses it to find who made the record
+    branch: user.branch,
     operatorId: user.employeeId,
     operatorName: user.name,
     shift: setup.shift,
