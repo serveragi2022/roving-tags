@@ -16,7 +16,7 @@ export default function AssignChecklistScreen({ navigation, route }) {
   const checklistId = route.params.checklistId;
   const checklist = checklists.find((item) => item.id === checklistId);
 
-  const [mill, setMill] = useState(setup.mill);
+  const [mill, setMill] = useState(MILLS[0]);
   const [selected, setSelected] = useState(() => {
     const result = {};
     Object.keys(checklistMap).forEach((code) => {

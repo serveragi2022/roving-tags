@@ -36,7 +36,10 @@ export default function RouteScreen({ navigation }) {
       status === 'deferred'
         ? `Roving deferred because of an urgent repair (${time}).`
         : `Roved at ${time}.`;
-    Alert.alert(`${stop.code} ${stop.name}`, message);
+    Alert.alert(`${stop.code} ${stop.name}`, message, [
+      { text: 'Close', style: 'cancel' },
+      { text: 'View Record', onPress: () => navigation.navigate('Record', { recordId: record.id }) },
+    ]);
   }
 
   function renderHeader() {
@@ -45,8 +48,8 @@ export default function RouteScreen({ navigation }) {
         <View style={cardStyle}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1 }}>
-              <Text style={textStyles.small}>ZONE &amp; SHIFT STATUS</Text>
-              <Text style={textStyles.heading}>{setup.mill} • Shift {setup.shift}</Text>
+              <Text style={textStyles.small}>SHIFT STATUS</Text>
+              <Text style={textStyles.heading}>Shift {setup.shift}</Text>
               <Text style={textStyles.label}>{formatDateLabel(setup.workDate)}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
@@ -99,7 +102,7 @@ export default function RouteScreen({ navigation }) {
     return (
       <View style={{ alignItems: 'center', marginTop: 24 }}>
         <Text style={[textStyles.body, { marginBottom: 12, textAlign: 'center' }]}>
-          {isSetupAllowed ? 'No route assigned yet.' : 'No route set yet for this date, mill and shift. Please ask the person who sets the routes.'}
+          {isSetupAllowed ? 'No route assigned yet.' : 'No route set yet for this date and shift. Please ask the person who sets the routes.'}
         </Text>
         {isSetupAllowed ? (
           <BigButton title="Assign Route" icon="add-task" onPress={() => navigation.navigate('AssignRoute')} />
@@ -112,7 +115,7 @@ export default function RouteScreen({ navigation }) {
     <Screen
       title="Assigned Route"
       onBack={() => goTo(navigation, 'Home')}
-      pillText={setup.mill}
+      pillText={`Shift ${setup.shift}`}
       activeTab="Route"
       scroll={false}
     >

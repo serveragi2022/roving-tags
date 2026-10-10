@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Roving Tags",
+    "name": "AGI Roving Tags Cleaning and Monitoring",
     "slug": "roving-tags",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,13 +21,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Roving Tags needs the camera to scan machine QR codes and take inspection photos."
+          "cameraPermission": "AGI Roving Tags needs the camera to scan machine QR codes and take inspection photos."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Roving Tags stamps the photo with your location."
+          "locationWhenInUsePermission": "AGI Roving Tags stamps the photo with your location."
         }
       ]
     ]

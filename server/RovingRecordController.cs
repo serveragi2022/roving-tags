@@ -7,6 +7,7 @@ using mmsapi.Class;   // TODO: change to the namespace where your GoogleCloudSto
 using mmsapi.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Npgsql;
 using System;
 using System.Globalization;
 using System.IO;
@@ -88,6 +89,18 @@ namespace mmsapi.Controllers.Roving
             if (user == null) return StatusCode(403, "Unknown or inactive user.");
             var who = RovingNames.ShortName(user.Firstname, user.Lastname, userIdText);
 
+            // A machine is inspected once per date + shift. A different record id for the same
+            // machine, date and shift is a duplicate: answer 409 so the phone stops sending it.
+            // (Urgent repairs can be many in one shift.)
+            if (type == "inspection")
+            {
+                var isDuplicate = await _db.RovingRecord.AsNoTracking().AnyAsync(x =>
+                    x.Id != id && x.Branch == user.Branch && x.WorkDate == workDate.Date && x.Shift == shift
+                    && x.AssetCode == assetCode && x.RecordType == "inspection");
+                if (isDuplicate)
+                    return Conflict("This machine already has an inspection for this date and shift.");
+            }
+
             using (var transaction = await _db.Database.BeginTransactionAsync())
             {
                 try
@@ -143,6 +156,15 @@ namespace mmsapi.Controllers.Roving
                     await _db.SaveChanges1Async();
                     await transaction.CommitAsync();
                     return Ok(new { id = record.Id, photoPath = record.PhotoPath });
+                }
+                catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
+                {
+                    await transaction.RollbackAsync();
+                    // Another record of the same machine, date and shift was saved a moment ago
+                    if (pg.ConstraintName == "ux_roving_record_inspection")
+                        return Conflict("This machine already has an inspection for this date and shift.");
+                    // The same record (same id) was saved a moment ago by another request: it is already saved
+                    return Ok(new { id, alreadySaved = true });
                 }
                 catch (Exception ex)
                 {

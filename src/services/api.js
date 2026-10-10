@@ -109,13 +109,13 @@ async function sendSetup(path, body) {
   if (!response.ok) throw new Error("Failed to save setup");
 }
 
-// GET /api/roving-routes?branch=&workDate=&mill=&shift=
+// GET /api/roving-routes?branch=&workDate=&shift=
 // Returns { machineCodes } or null when no route was set. Throws when the server cannot be reached.
-export async function getRouteRemote(branch, { workDate, mill, shift }) {
+export async function getRouteRemote(branch, { workDate, shift }) {
   if (!API_URL) throw new Error("NO_API_URL");
   const query =
     `branch=${encodeURIComponent(branch)}&workDate=${encodeURIComponent(workDate)}` +
-    `&mill=${encodeURIComponent(mill)}&shift=${encodeURIComponent(shift)}`;
+    `&shift=${encodeURIComponent(shift)}`;
   const response = await fetchWithTimeout(
     `${API_URL}/roving-routes?${query}`,
     { headers: jsonHeaders() },
@@ -131,7 +131,6 @@ export async function getRouteRemote(branch, { workDate, mill, shift }) {
 export async function saveRouteRemote({
   branch,
   workDate,
-  mill,
   shift,
   machineCodes,
   userId,
@@ -141,7 +140,6 @@ export async function saveRouteRemote({
   await sendSetup("/roving-routes", {
     Branch: branch,
     WorkDate: workDate,
-    Mill: mill,
     Shift: shift,
     MachineCodes: machineCodes,
     UserId: String(userId),
@@ -233,6 +231,8 @@ export async function uploadRecord(record, fallback = {}) {
     ok: response.ok,
     content: responseText,
   });
+
+  if (response.status === 409) throw new Error("DUPLICATE"); // already on the server for this machine, date and shift
 
   if (!response.ok) {
     throw new Error(

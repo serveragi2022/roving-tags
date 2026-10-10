@@ -6,33 +6,31 @@ import BigButton from '../components/BigButton';
 import { useApp } from '../utils/AppContext';
 import { formatDateLabel, getWorkDate, goTo, shiftDate } from '../utils/helpers';
 import { canSetup } from '../utils/accounts';
-import { getMachinesOfMill, MILLS } from '../utils/machineList';
 import { SHIFTS } from '../utils/sampleData';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
-// First screen: choose the date, mill and shift, then assign the route.
+// Choose the date and shift, then assign the route (a route can have machines from any area).
 export default function SetupScreen({ navigation }) {
   const { user, setup, applySetup, loadRoute, pendingSetupCount, isOnline } = useApp();
   const [workDate, setWorkDate] = useState(setup.workDate);
-  const [mill, setMill] = useState(setup.mill);
   const [shift, setShift] = useState(setup.shift);
   const [savedCount, setSavedCount] = useState(0); // machines already assigned for this choice
   const canEditSetup = canSetup(user); // only people with the Routes/Checklist access can set the route and checklists
 
-  // Check if a route was already assigned for this date + mill + shift
+  // Check if a route was already assigned for this date + shift
   // (asks the server when online, so everyone sees what the route setter set)
   useEffect(() => {
     let isCurrent = true;
-    loadRoute({ workDate, mill, shift }).then((codes) => {
+    loadRoute({ workDate, shift }).then((codes) => {
       if (isCurrent) setSavedCount(codes.length);
     });
     return () => {
       isCurrent = false;
     };
-  }, [workDate, mill, shift, isOnline]);
+  }, [workDate, shift, isOnline]);
 
   async function openRoute(goToAssign) {
-    await applySetup({ workDate, mill, shift });
+    await applySetup({ workDate, shift });
     if (goToAssign) {
       navigation.navigate('AssignRoute');
     } else {
@@ -67,7 +65,7 @@ export default function SetupScreen({ navigation }) {
         )
       }
     >
-      <Text style={[textStyles.small, { marginBottom: 8 }]}>STEP 1 • WHEN AND WHERE</Text>
+      <Text style={[textStyles.small, { marginBottom: 8 }]}>STEP 1 • DATE AND SHIFT</Text>
 
       {/* Date */}
       <View style={cardStyle}>
@@ -84,25 +82,6 @@ export default function SetupScreen({ navigation }) {
         <Pressable onPress={() => setWorkDate(getWorkDate())} style={styles.todayButton}>
           <Text style={styles.todayText}>Set to today</Text>
         </Pressable>
-      </View>
-
-      {/* Mill */}
-      <View style={cardStyle}>
-        <Text style={textStyles.heading}>Mill / Area</Text>
-        <View style={styles.chipRow}>
-          {MILLS.map((item) => (
-            <Pressable
-              key={item}
-              onPress={() => setMill(item)}
-              style={[styles.chip, item === mill && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, item === mill && { color: colors.white }]}>{item}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={[textStyles.label, { marginTop: 8 }]}>
-          {getMachinesOfMill(mill).length} machines in {mill}
-        </Text>
       </View>
 
       {/* Shift */}
@@ -124,15 +103,15 @@ export default function SetupScreen({ navigation }) {
       {savedCount > 0 ? (
         <View style={[cardStyle, { backgroundColor: colors.greenLight, borderColor: colors.green }]}>
           <Text style={[textStyles.body, { color: colors.greenDark }]}>
-            A route is already assigned for this date, mill and shift ({savedCount} machines).
+            A route is already assigned for this date and shift ({savedCount} machines).
           </Text>
         </View>
       ) : !canEditSetup ? (
         <View style={[cardStyle, { backgroundColor: colors.amberLight, borderColor: colors.amber }]}>
           <Text style={[textStyles.body, { color: colors.amberDark }]}>
             {isOnline
-              ? 'No route has been set for this date, mill and shift yet.'
-              : 'No route on this phone for this date, mill and shift. Connect to the internet to download the route.'}
+              ? 'No route has been set for this date and shift yet.'
+              : 'No route on this phone for this date and shift. Connect to the internet to download the route.'}
           </Text>
         </View>
       ) : null}

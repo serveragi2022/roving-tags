@@ -10,6 +10,7 @@ const LOOKS = {
   deferred: { label: 'Deferred', icon: 'build', color: colors.muted, background: colors.border },
   uploaded: { label: 'Uploaded', icon: 'cloud-done', color: colors.greenDark, background: colors.greenLight },
   waiting: { label: 'Waiting', icon: 'cloud-queue', color: colors.amberDark, background: colors.amberLight },
+  duplicate: { label: 'Duplicate', icon: 'content-copy', color: colors.muted, background: colors.border },
   failed: { label: 'Failed', icon: 'sync-problem', color: colors.redDark, background: colors.redLight },
 };
 

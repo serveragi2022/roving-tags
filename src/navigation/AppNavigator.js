@@ -15,16 +15,18 @@ import PhotoScreen from '../screens/PhotoScreen';
 import UrgentScreen from '../screens/UrgentScreen';
 import ApprovalScreen from '../screens/ApprovalScreen';
 import ReviewScreen from '../screens/ReviewScreen';
+import RecordDetailScreen from '../screens/RecordDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
 // Flow:
-// Login -> Home (today, last used mill and shift)
-// Home -> Setup (change date, mill, shift) -> Home or Assign Route
+// Login -> Home (today and the last used shift)
+// Home -> Setup (change date, shift) -> Home or Assign Route
 // Home -> Checklists -> Edit Checklist / Assign Checklist to machines
 // Home -> Scan -> Checklist -> Photo -> (next stop)       Path A: normal roving
 // Home or Checklist -> Urgent -> Approval                  Path B: urgent repair
 // Route and History are opened from the bottom bar.
+// History -> Record (everything saved in a checklist or urgent repair sheet)
 export default function AppNavigator() {
   const { user } = useApp();
 
@@ -45,6 +47,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Urgent" component={UrgentScreen} />
         <Stack.Screen name="Approval" component={ApprovalScreen} />
         <Stack.Screen name="History" component={ReviewScreen} />
+        <Stack.Screen name="Record" component={RecordDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

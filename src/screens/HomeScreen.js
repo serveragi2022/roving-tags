@@ -5,7 +5,7 @@ import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
 import { useApp } from '../utils/AppContext';
 import { canSetup, describeLoginError } from '../utils/accounts';
-import { countStops, formatDateLabel, getGreeting, getStopStatus, goTo } from '../utils/helpers';
+import { APP_TITLE, countStops, formatDateLabel, getGreeting, getStopStatus, goTo } from '../utils/helpers';
 import { cardStyle, colors, textStyles } from '../utils/theme';
 
 export default function HomeScreen({ navigation }) {
@@ -21,7 +21,7 @@ export default function HomeScreen({ navigation }) {
   function handleStart() {
     if (stops.length === 0) {
       if (isSetupAllowed) navigation.navigate('AssignRoute');
-      else goTo(navigation, 'Setup'); // operator: pick another date / mill / shift
+      else goTo(navigation, 'Setup'); // operator: pick another date / shift
     } else if (nextStop) {
       navigation.navigate('Scan');
     } else {
@@ -60,7 +60,7 @@ export default function HomeScreen({ navigation }) {
   if (!user) return null; // right after logout, before the Login screen shows
 
   return (
-    <Screen title="Roving Tags" pillText={setup.mill} activeTab="Route">
+    <Screen title={APP_TITLE} pillText={`Shift ${setup.shift}`} activeTab="Route">
       {/* Operator and setup */}
       <View style={cardStyle}>
         <Text style={textStyles.small}>SHIFT OPERATOR</Text>
@@ -72,9 +72,9 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.setupRow}>
           <View style={{ flex: 1 }}>
-            <Text style={textStyles.small}>DATE • MILL • SHIFT</Text>
+            <Text style={textStyles.small}>DATE • SHIFT</Text>
             <Text style={textStyles.body}>{formatDateLabel(setup.workDate)}</Text>
-            <Text style={textStyles.body}>{setup.mill} • Shift {setup.shift}</Text>
+            <Text style={textStyles.body}>Shift {setup.shift}</Text>
           </View>
           <Pressable style={styles.changeButton} onPress={() => goTo(navigation, 'Setup')}>
             <MaterialIcons name="edit-calendar" size={18} color={colors.primary} />
@@ -90,14 +90,14 @@ export default function HomeScreen({ navigation }) {
           <Text style={[textStyles.heading, { marginTop: 4 }]}>No route assigned yet</Text>
           <Text style={[textStyles.label, { marginTop: 4 }]}>
             {isSetupAllowed
-              ? `Choose the machines to rove for ${setup.mill}, Shift ${setup.shift}.`
-              : `No route has been set for ${setup.mill}, Shift ${setup.shift} yet.`}
+              ? `Choose the machines to rove for Shift ${setup.shift}.`
+              : `No route has been set for Shift ${setup.shift} yet.`}
           </Text>
         </View>
       ) : (
         <View style={[cardStyle, { borderLeftWidth: 6, borderLeftColor: colors.green }]}>
           <Text style={[textStyles.small, { color: colors.primary }]}>TODAY'S ASSIGNED ROUTE</Text>
-          <Text style={[textStyles.title, { marginTop: 2 }]}>{setup.mill} Roving</Text>
+          <Text style={[textStyles.title, { marginTop: 2 }]}>Shift {setup.shift} Roving</Text>
 
           <View style={styles.metricBox}>
             <View style={styles.rowBetween}>
@@ -130,7 +130,7 @@ export default function HomeScreen({ navigation }) {
       <BigButton
         title={
           stops.length === 0
-            ? isSetupAllowed ? 'ASSIGN ROUTE' : 'CHANGE DATE / MILL / SHIFT'
+            ? isSetupAllowed ? 'ASSIGN ROUTE' : 'CHANGE DATE / SHIFT'
             : nextStop ? 'START ROVING' : 'REVIEW & UPLOAD'
         }
         icon={stops.length === 0 ? (isSetupAllowed ? 'add-task' : 'edit-calendar') : nextStop ? 'play-arrow' : 'cloud-upload'}
@@ -152,7 +152,7 @@ export default function HomeScreen({ navigation }) {
       <View style={cardStyle}>
         <Text style={textStyles.heading}>Shift Details</Text>
         <Text style={[textStyles.small, { marginTop: 12 }]}>ASSIGNED ROUTE</Text>
-        <Text style={textStyles.body}>{setup.mill} • {stops.length} machines</Text>
+        <Text style={textStyles.body}>Shift {setup.shift} • {stops.length} machines</Text>
 
         <Text style={[textStyles.small, { marginTop: 12 }]}>LOGGED IN</Text>
         <Text style={textStyles.body}>{user.name} • {user.employeeId}</Text>

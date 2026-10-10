@@ -17,7 +17,7 @@ export default function TopBar({ title, onBack, pillText }) {
         <MaterialIcons name="factory" size={26} color={colors.primary} style={{ marginRight: 8 }} />
       )}
 
-      <Text style={styles.title} numberOfLines={1}>{title}</Text>
+      <Text style={[styles.title, title && title.length > 24 && styles.titleLong]} numberOfLines={2}>{title}</Text>
 
       {pillText ? (
         <View style={styles.pill}>
@@ -47,6 +47,7 @@ const styles = StyleSheet.create({
   },
   iconButton: { width: 48, height: 48, marginLeft: -12, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontSize: 18, fontWeight: '700', color: colors.primary },
+  titleLong: { fontSize: 14, lineHeight: 18 }, // long titles such as the app name
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,8 @@
 // Small helper functions used by many screens
+import { findMachine } from './machineList';
+
+// Name of the app (login screen and home screen)
+export const APP_TITLE = 'AGI Roving Tags Cleaning and Monitoring';
 
 // Change this if the night shift (Shift C) ends at a different hour.
 // Records made before this hour still belong to the previous day's work date.
@@ -87,7 +91,8 @@ export function groupByFloor(stops) {
   return sections;
 }
 
-// Shared fields for every saved record. "setup" is { workDate, mill, shift }.
+// Shared fields for every saved record. "setup" is { workDate, shift }.
+// The mill (area) of the record is the area of the machine, because a route can have machines from different areas.
 export function makeRecordBase(user, setup, assetCode, stop) {
   return {
     id: makeRecordId(assetCode),
@@ -99,7 +104,7 @@ export function makeRecordBase(user, setup, assetCode, stop) {
     operatorId: user.employeeId,
     operatorName: user.name,
     shift: setup.shift,
-    mill: setup.mill,
+    mill: (stop && stop.area) || (findMachine(assetCode) || {}).area || 'Others',
     workDate: setup.workDate,
     createdAt: new Date().toISOString(),
     uploadStatus: 'waiting', // waiting, uploaded or failed
@@ -126,9 +131,9 @@ export function makeBlankUrgentDraft(assetCode = '') {
   };
 }
 
-// Storage key of the route that was assigned for one date + mill + shift
+// Storage key of the route that was assigned for one date + shift (a route can have machines from any area)
 export function getRouteKey(setup) {
-  return `roving_route_${setup.workDate}_${setup.mill}_${setup.shift}`;
+  return `roving_route_${setup.workDate}_${setup.shift}`;
 }
 
 // "2026-10-05" + 1 -> "2026-10-06"

@@ -11,7 +11,7 @@ import { findMachine } from '../utils/machineList';
 import { colors, textStyles } from '../utils/theme';
 
 export default function ScanScreen({ navigation, route }) {
-  const { stops, records, urgentDraft, setUrgentDraft } = useApp();
+  const { stops, records, todayRecords, urgentDraft, setUrgentDraft } = useApp();
   const isFocused = useIsFocused(); // only one camera should be open at a time
   const [permission, requestPermission] = useCameraPermissions();
   const [torchOn, setTorchOn] = useState(false);
@@ -67,6 +67,11 @@ export default function ScanScreen({ navigation, route }) {
     setScannedStop(null);
     setErrorMessage('');
   }
+
+  // A machine is inspected once per date + shift (todayRecords is already this date + shift)
+  const doneRecord = scannedStop
+    ? todayRecords.find((item) => item.assetCode === scannedStop.code && item.type === 'inspection')
+    : null;
 
   // When the asset was last roved (any day)
   const lastRecord = scannedStop
@@ -137,11 +142,27 @@ export default function ScanScreen({ navigation, route }) {
             <Text style={[textStyles.label, { marginBottom: 12 }]}>
               Last roved: {lastRecord ? `${new Date(lastRecord.createdAt).toLocaleDateString()} ${formatTime(lastRecord.createdAt)}` : 'not yet'}
             </Text>
-            <BigButton
-              title="Open Checklist"
-              icon="fact-check"
-              onPress={() => navigation.navigate('Checklist', { stopCode: scannedStop.code })}
-            />
+            {doneRecord ? (
+              <>
+                <View style={styles.doneBox}>
+                  <Text style={styles.doneText}>
+                    Already inspected this shift at {formatTime(doneRecord.createdAt)}. A machine is inspected once per shift.
+                  </Text>
+                </View>
+                <BigButton
+                  title="View Record"
+                  icon="visibility"
+                  variant="neutral"
+                  onPress={() => navigation.navigate('Record', { recordId: doneRecord.id })}
+                />
+              </>
+            ) : (
+              <BigButton
+                title="Open Checklist"
+                icon="fact-check"
+                onPress={() => navigation.navigate('Checklist', { stopCode: scannedStop.code })}
+              />
+            )}
             <Pressable onPress={scanAgain} style={styles.linkButton}>
               <Text style={styles.linkText}>Scan a different code</Text>
             </Pressable>
@@ -187,6 +208,8 @@ export default function ScanScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  doneBox: { backgroundColor: colors.amberLight, borderColor: colors.amber, borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12 },
+  doneText: { color: colors.amberDark, fontSize: 14, fontWeight: '700' },
   cameraArea: { flex: 1, backgroundColor: '#0B1220' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   permissionText: { color: colors.white, fontSize: 15, textAlign: 'center', marginVertical: 16 },

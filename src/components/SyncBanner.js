@@ -9,11 +9,13 @@ export default function SyncBanner() {
   const count = pendingRecords.length;
 
   async function handleUploadNow() {
+    if (isUploading) return; // one upload at a time
     if (!isOnline) {
       Alert.alert('No internet', 'Your records are safe on this phone. Try again when you have a connection.');
       return;
     }
     const result = await uploadRecords(pendingRecords);
+    if (result.busy) return;
     if (result.failed > 0) {
       Alert.alert('Upload problem', `${result.failed} record(s) failed. They stay on this phone. Please try again.`);
     }

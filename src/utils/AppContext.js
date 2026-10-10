@@ -16,7 +16,7 @@ import { DEFAULT_CHECKLIST } from './checklistItems';
 import { MACHINES } from './machineList';
 import { getRouteKey, getWorkDate } from './helpers';
 
-// Shared data for all screens: logged-in user, setup (date, mill, shift), route,
+// Shared data for all screens: logged-in user, setup (date, shift), route,
 // checklists, saved records, online status.
 const AppContext = createContext(null);
 
@@ -28,7 +28,7 @@ export function AppProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null); // null = not logged in
   const [accountInfo, setAccountInfo] = useState({ count: 0, syncedAt: null });
-  const [setup, setSetup] = useState({ workDate: getWorkDate(), mill: 'Mill A', shift: '1' });
+  const [setup, setSetup] = useState({ workDate: getWorkDate(), shift: '1' });
   const [routeCodes, setRouteCodes] = useState([]); // machine codes assigned for the setup
   const [checklists, setChecklists] = useState([DEFAULT_CHECKLIST]);
   const [checklistMap, setChecklistMap] = useState({}); // { machineCode: checklistId }
@@ -38,15 +38,19 @@ export function AppProvider({ children }) {
   const [urgentDraft, setUrgentDraft] = useState(null); // urgent repair sheet in progress
 
   // Route / checklist changes (made by someone with setup access) that are not on the server yet
-  // { config: timestamp or 0, routes: { [routeKey]: { workDate, mill, shift, codes } } }
+  // { config: timestamp or 0, routes: { [routeKey]: { workDate, shift, codes } } }
   const pendingRef = useRef({ config: 0, routes: {} });
+
+  // Only one upload run at a time (a state value is too slow to stop a double tap)
+  const uploadLockRef = useRef(false);
+  const uploadedIdsRef = useRef(new Set()); // records uploaded since the app opened
   const [pendingSetupCount, setPendingSetupCount] = useState(0);
 
   // 1. Load everything saved on the phone when the app starts
   useEffect(() => {
     async function loadSavedData() {
-      const savedChoice = await loadJson('roving_setup', { mill: 'Mill A', shift: '1' });
-      const newSetup = { workDate: getWorkDate(), mill: savedChoice.mill, shift: savedChoice.shift };
+      const savedChoice = await loadJson('roving_setup', { shift: '1' });
+      const newSetup = { workDate: getWorkDate(), shift: savedChoice.shift || '1' };
       const savedChecklists = await loadJson('roving_checklists', null);
 
       pendingRef.current = await loadJson('roving_pending_setup', { config: 0, routes: {} });
@@ -141,10 +145,10 @@ export function AppProvider({ children }) {
     const codes = await loadJson(getRouteKey(newSetup), []);
     setSetup(newSetup);
     setRouteCodes(codes);
-    saveJson('roving_setup', { mill: newSetup.mill, shift: newSetup.shift });
+    saveJson('roving_setup', { shift: newSetup.shift });
   }
 
-  // The route for a date + mill + shift. The server copy (set by the route setter) wins when we
+  // The route for a date + shift. The server copy (set by the route setter) wins when we
   // are online; it is saved on the phone so it also works offline. Returns the machine codes.
   async function loadRoute(choice) {
     const key = getRouteKey(choice);
@@ -168,7 +172,7 @@ export function AppProvider({ children }) {
     if (!canSetup(user)) return false;
     setRouteCodes(codes);
     saveJson(getRouteKey(setup), codes);
-    const choice = { workDate: setup.workDate, mill: setup.mill, shift: setup.shift };
+    const choice = { workDate: setup.workDate, shift: setup.shift };
     changePending((pending) => {
       pending.routes[getRouteKey(choice)] = { ...choice, codes };
     });
@@ -203,7 +207,6 @@ export function AppProvider({ children }) {
       await saveRouteRemote({
         branch: getBranch(),
         workDate: item.workDate,
-        mill: item.mill,
         shift: item.shift,
         machineCodes: item.codes,
         userId: user.userId,
@@ -349,56 +352,67 @@ export function AppProvider({ children }) {
     changeRecords((oldRecords) => [record, ...oldRecords]);
   }
 
-  // Uploads the given records one by one. Returns how many worked and failed.
-async function uploadRecords(recordsToUpload) {
-  if (isUploading) return { uploaded: 0, failed: 0 };
+  // Uploads the given records ONE AT A TIME. Only one upload run can be active:
+  // a second call (double tap, "Upload Now" + "Upload All") is ignored until the first one ends.
+  // A record that is already uploaded, or listed twice, is skipped.
+  // Returns { uploaded, failed, busy }.
+  async function uploadRecords(recordsToUpload) {
+    if (uploadLockRef.current) return { uploaded: 0, failed: 0, busy: true };
+    uploadLockRef.current = true;
+    setIsUploading(true);
 
-  setIsUploading(true);
-  let uploaded = 0;
-  let failed = 0;
-
-  for (const record of recordsToUpload) {
-    let newStatus = 'uploaded';
+    let uploaded = 0;
+    let failed = 0;
+    let duplicates = 0;
+    const seen = new Set();
 
     try {
-      await uploadRecord(record, {
-        branch: getBranch(),
-        userId: user && user.userId,
-      });
+      for (const record of recordsToUpload) {
+        if (seen.has(record.id) || uploadedIdsRef.current.has(record.id) || record.uploadStatus === 'uploaded') continue;
+        seen.add(record.id);
 
-      uploaded += 1;
+        let newStatus = 'uploaded';
+        try {
+          await uploadRecord(record, {
+            branch: getBranch(),
+            userId: user && user.userId,
+          });
+          uploaded += 1;
+          uploadedIdsRef.current.add(record.id);
+        } catch (error) {
+          if (error?.message === 'DUPLICATE') {
+            // The server already has an inspection of this machine for this date and shift
+            newStatus = 'duplicate';
+            duplicates += 1;
+          } else {
+            newStatus = 'failed';
+            failed += 1;
+            console.error('UPLOAD FAILED:', {
+              recordId: record.id,
+              message: error?.message,
+            });
+          }
+        }
 
-      console.log('UPLOAD SUCCESS:', record.id);
-    } catch (error) {
-      newStatus = 'failed';
-      failed += 1;
-
-      console.error('UPLOAD FAILED:', {
-        recordId: record.id,
-        error: error,
-        message: error?.message,
-      });
+        changeRecords((oldRecords) =>
+          oldRecords.map((item) =>
+            item.id === record.id ? { ...item, uploadStatus: newStatus } : item
+          )
+        );
+      }
+    } finally {
+      uploadLockRef.current = false;
+      setIsUploading(false);
     }
 
-    changeRecords((oldRecords) =>
-      oldRecords.map((item) =>
-        item.id === record.id
-          ? { ...item, uploadStatus: newStatus }
-          : item
-      )
-    );
+    return { uploaded, failed, duplicates, busy: false };
   }
-
-  setIsUploading(false);
-
-  return { uploaded, failed };
-}
 
   // The route: assigned machines, already sorted by floor
   const codeSet = new Set(routeCodes);
   const stops = MACHINES.filter((machine) => codeSet.has(machine.code));
 
-  const pendingRecords = records.filter((item) => item.uploadStatus !== 'uploaded');
+  const pendingRecords = records.filter((item) => item.uploadStatus !== 'uploaded' && item.uploadStatus !== 'duplicate');
   const todayRecords = records.filter(
     (item) => item.workDate === setup.workDate && item.shift === setup.shift
   );

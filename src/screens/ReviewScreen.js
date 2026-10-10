@@ -1,4 +1,4 @@
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Screen from '../components/Screen';
 import BigButton from '../components/BigButton';
@@ -17,13 +17,21 @@ export default function ReviewScreen({ navigation }) {
   const allUploaded = records.length > 0 && pendingRecords.length === 0;
 
   async function upload(recordsToUpload) {
+    if (isUploading) {
+      Alert.alert('Upload in progress', 'Please wait until the upload is finished.');
+      return;
+    }
     if (!isOnline) {
       Alert.alert('No internet', 'Your records are safe on this phone. Try again when you have a connection.');
       return;
     }
     const result = await uploadRecords(recordsToUpload);
-    if (result.failed > 0) {
+    if (result.busy) {
+      Alert.alert('Upload in progress', 'Please wait until the upload is finished.');
+    } else if (result.failed > 0) {
       Alert.alert('Upload problem', `${result.uploaded} uploaded, ${result.failed} failed. Failed records stay on this phone.`);
+    } else if (result.duplicates > 0) {
+      Alert.alert('Already on the server', `${result.uploaded} uploaded. ${result.duplicates} record(s) were not uploaded because the server already has that machine for this date and shift.`);
     } else if (result.uploaded > 0) {
       Alert.alert('Done', `${result.uploaded} record(s) uploaded.`);
     }
@@ -32,7 +40,7 @@ export default function ReviewScreen({ navigation }) {
   function renderHeader() {
     return (
       <View>
-        <Text style={[textStyles.small, { marginBottom: 8 }]}>{setup.mill.toUpperCase()} • SHIFT {setup.shift} SUMMARY</Text>
+        <Text style={[textStyles.small, { marginBottom: 8 }]}>SHIFT {setup.shift} SUMMARY</Text>
         <View style={styles.grid}>
           <View style={[styles.kpi, { backgroundColor: colors.greenLight }]}>
             <Text style={[styles.kpiLabel, { color: colors.greenDark }]}>STOPS DONE</Text>
@@ -69,6 +77,7 @@ export default function ReviewScreen({ navigation }) {
         ) : null}
 
         <Text style={[textStyles.heading, { marginVertical: 8 }]}>Records ({records.length})</Text>
+        <Text style={[textStyles.label, { marginBottom: 8 }]}>Tap a record to see everything that was saved.</Text>
       </View>
     );
   }
@@ -77,7 +86,7 @@ export default function ReviewScreen({ navigation }) {
     const isUrgent = item.type === 'urgent';
     const hasIssue = !isUrgent && hasProblem(item.answers);
     return (
-      <View style={styles.recordCard}>
+      <Pressable style={styles.recordCard} onPress={() => navigation.navigate('Record', { recordId: item.id })}>
         <MaterialIcons
           name={isUrgent ? 'build' : hasIssue ? 'warning' : 'precision-manufacturing'}
           size={26}
@@ -95,7 +104,8 @@ export default function ReviewScreen({ navigation }) {
             <Text style={styles.retry} onPress={() => upload([item])}>Retry</Text>
           ) : null}
         </View>
-      </View>
+        <MaterialIcons name="chevron-right" size={22} color={colors.muted} />
+      </Pressable>
     );
   }
 

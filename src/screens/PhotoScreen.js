@@ -25,6 +25,10 @@ export default function PhotoScreen({ navigation, route }) {
       return;
     }
     if (isSaved) return; // prevent saving twice
+    if (todayRecords.some((item) => item.assetCode === stopCode && item.type === 'inspection')) {
+      Alert.alert('Already inspected', `${stopCode} already has an inspection for this date and shift.`);
+      return;
+    }
 
     addRecord({
       ...makeRecordBase(user, setup, stopCode, stop),

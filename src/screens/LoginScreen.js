@@ -6,7 +6,7 @@ import BigButton from "../components/BigButton";
 import { useApp } from "../utils/AppContext";
 import { canUseApp, describeLoginError, findAccount, makeUser } from "../utils/accounts";
 import { loginOnline } from "../services/api";
-import { goTo } from "../utils/helpers";
+import { APP_TITLE, goTo } from "../utils/helpers";
 import { cardStyle, colors, textStyles } from "../utils/theme";
 import CryptoJS from 'crypto-js';
 
@@ -108,11 +108,11 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
-    <Screen title="Roving Tags Login" hideNav>
+    <Screen title="Login" hideNav>
       <View style={[cardStyle, { alignItems: "center" }]}>
         <MaterialIcons name="factory" size={48} color={colors.primary} />
-        <Text style={[textStyles.title, { marginTop: 8 }]}>
-          AGI Roving Tags
+        <Text style={[textStyles.title, { marginTop: 8, textAlign: "center" }]}>
+          {APP_TITLE}
         </Text>
         <Text style={textStyles.label}>
           {isOnline

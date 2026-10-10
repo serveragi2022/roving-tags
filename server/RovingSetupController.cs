@@ -18,18 +18,18 @@ namespace mmsapi.Controllers.Roving
         private const string SetupAccess = "Roving Tags Cleaning and Monitoring - Routes/Checklist";
         private readonly mmsContext _db;
 
-        public record SaveRouteRequest(string Branch, DateTime WorkDate, string Mill, string Shift, string[] MachineCodes, string UserId);
+        public record SaveRouteRequest(string Branch, DateTime WorkDate, string Shift, string[] MachineCodes, string UserId);
         public record SaveConfigRequest(string Branch, JToken Checklists, JToken ChecklistMap, string UserId);
 
         public RovingSetupController(mmsContext db) => _db = db;
 
-        // GET /api/roving-routes?branch=&workDate=&mill=&shift=
+        // GET /api/roving-routes?branch=&workDate=&shift=   (a route has machines from any area, so no mill)
         [HttpGet("roving-routes")]
-        public async Task<IActionResult> GetRoute(string branch, DateTime workDate, string mill, string shift)
+        public async Task<IActionResult> GetRoute(string branch, DateTime workDate, string shift)
         {
             workDate = workDate.Date;
             var route = await _db.RovingRoute.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Branch == branch && x.WorkDate == workDate && x.Mill == mill && x.Shift == shift);
+                .FirstOrDefaultAsync(x => x.Branch == branch && x.WorkDate == workDate && x.Shift == shift);
             if (route == null) return NotFound();
             return Ok(new { machineCodes = route.MachineCodes, updatedBy = route.UpdatedBy, updatedAt = route.UpdatedAt });
         }
@@ -45,14 +45,13 @@ namespace mmsapi.Controllers.Roving
             if (who == null)
                 return StatusCode(403, "No access to set the route.");
 
-            var route = await _db.RovingRoute.FindAsync(request.Branch, workDate, request.Mill, request.Shift);
+            var route = await _db.RovingRoute.FindAsync(request.Branch, workDate, request.Shift);
             if (route == null)
             {
                 route = new RovingRoute
                 {
                     Branch = request.Branch,
                     WorkDate = workDate,
-                    Mill = request.Mill,
                     Shift = request.Shift
                 };
                 _db.RovingRoute.Add(route);
